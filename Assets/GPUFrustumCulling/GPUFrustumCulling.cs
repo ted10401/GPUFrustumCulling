@@ -9,7 +9,6 @@ public class GPUFrustumCulling : MonoBehaviour
     {
         public Vector3 center;
         public Vector3 extents;
-        public uint visible;
     };
 
     public bool forceNotSupportsComputeShaders = false;
@@ -67,7 +66,7 @@ public class GPUFrustumCulling : MonoBehaviour
 
             ReleaseBuffer();
 
-            m_computeBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2 + sizeof(uint));
+            m_computeBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2);
             m_computeBuffer.SetData(m_bufferDatas);
             computeShader.SetBuffer(m_kernelID, "buffer", m_computeBuffer);
 
@@ -80,7 +79,6 @@ public class GPUFrustumCulling : MonoBehaviour
     {
         bufferData.center = tempCollider.bounds.center;
         bufferData.extents = tempCollider.bounds.extents;
-        bufferData.visible = 1;
     }
 
     private void Update()
@@ -110,37 +108,6 @@ public class GPUFrustumCulling : MonoBehaviour
             frustumPlanes4[i].w = frustumPlanes[i].distance;
         }
         computeShader.SetVectorArray("frustumPlanes", frustumPlanes4);
-
-        //Vector3[] frustumCorners = new Vector3[4];
-        //Camera.main.CalculateFrustumCorners(new Rect(0, 0, 1, 1), Camera.main.farClipPlane, Camera.MonoOrStereoscopicEye.Mono, frustumCorners);
-        //Vector3 minFrustumPlanes = frustumCorners[0];
-        //Vector3 maxFrustumPlanes = frustumCorners[0];
-        //for (int i = 1; i < 4; ++i)
-        //{
-        //    minFrustumPlanes = Vector3.Min(minFrustumPlanes, frustumCorners[i]);
-        //    maxFrustumPlanes = Vector3.Max(maxFrustumPlanes, frustumCorners[i]);
-        //}
-
-        //Camera.main.CalculateFrustumCorners(new Rect(0, 0, 1, 1), Camera.main.nearClipPlane, Camera.MonoOrStereoscopicEye.Mono, frustumCorners);
-        //for (int i = 1; i < 4; ++i)
-        //{
-        //    minFrustumPlanes = Vector3.Min(minFrustumPlanes, frustumCorners[i]);
-        //    maxFrustumPlanes = Vector3.Max(maxFrustumPlanes, frustumCorners[i]);
-        //}
-
-        //computeShader.SetVector("_FrustumMinPoint", new Vector4(minFrustumPlanes.x, minFrustumPlanes.y, minFrustumPlanes.z, 1));
-        //computeShader.SetVector("_FrustumMaxPoint", new Vector4(maxFrustumPlanes.x, maxFrustumPlanes.y, maxFrustumPlanes.z, 1));
-
-        //for(int i = 0; i < m_bufferDatas.Length; i++)
-        //{
-        //    m_bufferDatas[i].center = m_colliders[i].bounds.center;
-        //    m_bufferDatas[i].extents = m_colliders[i].bounds.extents;
-        //}
-        //m_computeBuffer.SetData(m_bufferDatas);
-        //computeShader.SetBuffer(m_kernelID, "buffer", m_computeBuffer);
-        //m_computeBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2 + sizeof(uint));
-        //m_computeBuffer.SetData(m_bufferDatas);
-        //computeShader.SetBuffer(m_kernelID, "buffer", m_computeBuffer);
 
         computeShader.Dispatch(m_kernelID, m_threadGroups, 1, 1);
         m_resultComputeBuffer.GetData(m_resultBufferDatas, 0, 0, m_resultBufferDatas.Length);
@@ -188,8 +155,8 @@ public class GPUFrustumCulling : MonoBehaviour
 
         for (int i = 0; i < m_renderers.Length; i++)
         {
-            //m_renderers[i].enabled = GeometryUtility.TestPlanesAABB(frustumPlanes, m_colliders[i].bounds);
-            m_renderers[i].enabled = FrustumCullingUtility.TestPlanesAABBInternalFast(frustumPlanes4, m_colliders[i].bounds);
+            m_renderers[i].enabled = GeometryUtility.TestPlanesAABB(frustumPlanes, m_colliders[i].bounds);
+            //m_renderers[i].enabled = FrustumCullingUtility.TestPlanesAABBInternalFast(frustumPlanes4, m_colliders[i].bounds);
         }
     }
 

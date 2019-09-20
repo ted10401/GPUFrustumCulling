@@ -1,5 +1,4 @@
-﻿// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+﻿#pragma kernel CSMain
 #define FRUSTUM_PLANE_COUNT 6
 #define THREAD_COUNT 64
 
@@ -7,84 +6,29 @@ struct BufferData
 {
     float3 center;
     float3 extents;
-    uint visible;
 };
 
 float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
-//float3 _FrustumMinPoint;
-//float3 _FrustumMaxPoint;
-RWStructuredBuffer<BufferData> buffer;
+StructuredBuffer<BufferData> buffer;
 RWStructuredBuffer<uint> resultBuffer;
-
-//void UpdateBufferData(BufferData bufferData)
-//{
-//    float3 center = bufferData.center;
-//    float3 extents = bufferData.extents;
-//    float3 minPos = center - extents;
-//    float3 maxPos = center + extents;
-//    float outOfRange = dot(_FrustumMinPoint > maxPos, 1) + dot(_FrustumMaxPoint < minPos, 1);
-//    if(outOfRange > 0.5)
-//	{
-//		bufferData.visible = 0;
-//		return;
-//	}
-
-//    [unroll]
-//    for(uint i = 0; i < FRUSTUM_PLANE_COUNT; ++i)
-//    {
-//        float4 frustumPlane = frustumPlanes[i];
-//        float3 absNormal = abs(frustumPlane.xyz);
-//        if((dot(center, frustumPlane.xyz) - dot(absNormal, extents)) > -frustumPlane.w)
-//        {
-//            bufferData.visible = 0;
-//			return;
-//        }
-//    }
-
-//	bufferData.visible = 1;
-//}
 
 void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
 {
-    float3 minPos = bufferData.center - bufferData.extents;
-    float3 maxPos = bufferData.center + bufferData.extents;
+    float3 center = bufferData.center;
+    float3 extents = bufferData.extents;
+    float3 boundsMin = center - extents;
+    float3 boundsMax = center + extents;
     
     for(int i = 0; i < FRUSTUM_PLANE_COUNT; i++)
     {
         float3 normal = frustumPlanes[i].xyz;
         float planeDistance = frustumPlanes[i].w;
+        float3 bounds = boundsMin;
+        bounds.x = lerp(boundsMin.x, boundsMax.x, step(0, normal.x));
+        bounds.y = lerp(boundsMin.y, boundsMax.y, step(0, normal.y));
+        bounds.z = lerp(boundsMin.z, boundsMax.z, step(0, normal.z));
         
-        float3 vmin = float3(0, 0, 0);
-        
-        if(normal.x < 0)
-        {
-           vmin.x = minPos.x;
-        }
-        else
-        {
-            vmin.x = maxPos.x;
-        }
-        
-        if(normal.y < 0)
-        {
-           vmin.y = minPos.y;
-        }
-        else
-        {
-            vmin.y = maxPos.y;
-        }
-        
-        if(normal.z < 0)
-        {
-           vmin.z = minPos.z;
-        }
-        else
-        {
-            vmin.z = maxPos.z;
-        }
-        
-        float dot1 = dot(normal, vmin);
-        if(dot1 + planeDistance < 0)
+        if(dot(normal, bounds) + planeDistance < 0)
         {
             resultBuffer[id] = 0;
             return;
@@ -97,6 +41,5 @@ void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
 [numthreads(THREAD_COUNT,1,1)]
 void CSMain (uint id : SV_DispatchThreadID)
 {
-	//UpdateBufferData(buffer[id]);
     TestPlanesAABBInternalFast(id, buffer[id]);
 }

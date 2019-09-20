@@ -295,7 +295,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   forceNotSupportsComputeShaders: 0
-  asyncGPUReadback: 1
+  asyncGPUReadback: 0
   computeShader: {fileID: 7200000, guid: 7134730f99bb87c4b9837e03ec54daee, type: 3}
 --- !u!1 &1009117409
 GameObject:
