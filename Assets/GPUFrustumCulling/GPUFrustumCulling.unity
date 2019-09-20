@@ -258,13 +258,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 534669902}
-  m_LocalRotation: {x: 0.17364816, y: 0, z: 0, w: 0.9848078}
+  m_LocalRotation: {x: 0.17216256, y: -0.12854324, z: 0.02266564, w: 0.97638255}
   m_LocalPosition: {x: 0, y: 15, z: -65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 20, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 20, y: -15, z: 0}
 --- !u!114 &534669906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -279,7 +279,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   generatePrefab: {fileID: 4321050410870331509, guid: ba7a880ff446d0c45b3a745bc3819aa9,
     type: 3}
-  generateCount: 16384
+  generateCount: 3200
   generateRadius: {x: 10, y: 50}
   gPUFrustumCulling: {fileID: 534669907}
 --- !u!114 &534669907
@@ -295,7 +295,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   forceNotSupportsComputeShaders: 0
-  asyncGPUReadback: 0
+  asyncGPUReadback: 1
   computeShader: {fileID: 7200000, guid: 7134730f99bb87c4b9837e03ec54daee, type: 3}
 --- !u!1 &1009117409
 GameObject:

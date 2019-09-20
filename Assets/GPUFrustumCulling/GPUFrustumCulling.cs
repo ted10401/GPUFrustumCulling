@@ -7,7 +7,7 @@ public class GPUFrustumCulling : MonoBehaviour
     private const string BOUNDS_BUFFER_NAME = "boundsBuffer";
     private const string RESULT_BUFFER_NAME = "resultBuffer";
     private const string FRUSTUM_PLANES_NAME = "frustumPlanes";
-    private const int THREAD_COUNT = 256;
+    private const int THREAD_COUNT = 64;
 
     struct BufferData
     {
@@ -113,6 +113,13 @@ public class GPUFrustumCulling : MonoBehaviour
         {
             m_frustumVector4[i] = m_frustumPlanes[i].ToVector4();
         }
+
+        for (int i = 0; i < m_colliders.Length; i++)
+        {
+            m_bufferData[i].center = m_colliders[i].bounds.center;
+            m_bufferData[i].extents = m_colliders[i].bounds.extents;
+        }
+        m_boundsBuffer.SetData(m_bufferData);
 
         computeShader.SetVectorArray(FRUSTUM_PLANES_NAME, m_frustumVector4);
         computeShader.Dispatch(m_kernelID, m_threadGroups, 1, 1);

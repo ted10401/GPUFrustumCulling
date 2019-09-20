@@ -36,6 +36,8 @@ public class GPUFrustumCullingGenerator : MonoBehaviour
         }
 
         m_parent = new GameObject("Parent");
+        m_parent.AddComponent<AutoRotate>();
+
         m_cubeColliders = new Collider[generateCount];
         m_cubeRenderers = new Renderer[generateCount];
 
