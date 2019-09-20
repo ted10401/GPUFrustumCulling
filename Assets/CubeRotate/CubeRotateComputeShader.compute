@@ -1,0 +1,18 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#define THREAD_COUNT 64
+
+struct BufferData
+{
+	float rotateSpeed;
+	float3 eulerAngle;
+};
+
+RWStructuredBuffer<BufferData> buffer;
+float deltaTime;
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void CSMain (uint id : SV_DispatchThreadID)
+{
+	buffer[id].eulerAngle.y += buffer[id].rotateSpeed * deltaTime;
+}

@@ -1,0 +1,50 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#define FRUSTUM_PLANE_COUNT 6
+#define THREAD_COUNT 64
+
+struct BufferData
+{
+    float3 center;
+    float3 extents;
+    uint visible;
+};
+
+float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
+float3 _FrustumMinPoint;
+float3 _FrustumMaxPoint;
+RWStructuredBuffer<BufferData> buffer;
+
+void UpdateBufferData(BufferData bufferData)
+{
+    float3 center = bufferData.center;
+    float3 extents = bufferData.extents;
+    float3 minPos = center - extents;
+    float3 maxPos = center + extents;
+    float outOfRange = dot(_FrustumMinPoint > maxPos, 1) + dot(_FrustumMaxPoint < minPos, 1);
+    if(outOfRange > 0.5)
+	{
+		bufferData.visible = 0;
+		return;
+	}
+
+    [unroll]
+    for(uint i = 0; i < FRUSTUM_PLANE_COUNT; ++i)
+    {
+        float4 frustumPlane = frustumPlanes[i];
+        float3 absNormal = abs(frustumPlane.xyz);
+        if((dot(center, frustumPlane.xyz) - dot(absNormal, extents)) > -frustumPlane.w)
+        {
+            bufferData.visible = 0;
+			return;
+        }
+    }
+
+	bufferData.visible = 1;
+}
+
+[numthreads(THREAD_COUNT,1,1)]
+void CSMain (uint id : SV_DispatchThreadID)
+{
+	UpdateBufferData(buffer[id]);
+}
