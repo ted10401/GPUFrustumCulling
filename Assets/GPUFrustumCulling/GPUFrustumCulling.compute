@@ -8,9 +8,9 @@ struct BufferData
     float3 extents;
 };
 
-float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
-StructuredBuffer<BufferData> buffer;
+StructuredBuffer<BufferData> boundsBuffer;
 RWStructuredBuffer<uint> resultBuffer;
+float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
 
 void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
 {
@@ -41,5 +41,5 @@ void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
 [numthreads(THREAD_COUNT,1,1)]
 void CSMain (uint id : SV_DispatchThreadID)
 {
-    TestPlanesAABBInternalFast(id, buffer[id]);
+    TestPlanesAABBInternalFast(id, boundsBuffer[id]);
 }

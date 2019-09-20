@@ -43,5 +43,12 @@ namespace UnityEngine
 
             return true;
         }
+
+        public static Vector4 ToVector4(this Plane plane)
+        {
+            Vector4 vector4 = plane.normal;
+            vector4.w = plane.distance;
+            return vector4;
+        }
     }
 }

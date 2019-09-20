@@ -3,7 +3,11 @@ using UnityEngine.Rendering;
 
 public class GPUFrustumCulling : MonoBehaviour
 {
-    private const int THREAD_COUNT = 64;
+    private const string KERNEL_NAME = "CSMain";
+    private const string BOUNDS_BUFFER_NAME = "boundsBuffer";
+    private const string RESULT_BUFFER_NAME = "resultBuffer";
+    private const string FRUSTUM_PLANES_NAME = "frustumPlanes";
+    private const int THREAD_COUNT = 256;
 
     struct BufferData
     {
@@ -21,9 +25,9 @@ public class GPUFrustumCulling : MonoBehaviour
     private Collider[] m_colliders;
     private Renderer[] m_renderers;
     private int m_threadGroups;
-    private ComputeBuffer m_computeBuffer;
-    private BufferData[] m_bufferDatas;
-    private ComputeBuffer m_resultComputeBuffer;
+    private ComputeBuffer m_boundsBuffer;
+    private BufferData[] m_bufferData;
+    private ComputeBuffer m_resultBuffer;
     private uint[] m_resultBufferDatas;
 
     private void Awake()
@@ -34,7 +38,7 @@ public class GPUFrustumCulling : MonoBehaviour
             m_supportsComputeShaders = false;
         }
 
-        m_kernelID = computeShader.FindKernel("CSMain");
+        m_kernelID = computeShader.FindKernel(KERNEL_NAME);
     }
 
     public void CreateComputeBuffer(Collider[] colliders, Renderer[] renderers)
@@ -50,43 +54,42 @@ public class GPUFrustumCulling : MonoBehaviour
         }
 
         m_valid = true;
-        m_bufferDatas = new BufferData[m_colliders.Length];
+        m_bufferData = new BufferData[m_colliders.Length];
         for (int i = 0; i < m_colliders.Length; i++)
         {
             BufferData bufferData = new BufferData();
-            InitializeBufferData(m_colliders[i], ref bufferData);
-            m_bufferDatas[i] = bufferData;
+            bufferData.center = m_colliders[i].bounds.center;
+            bufferData.extents = m_colliders[i].bounds.extents;
+
+            m_bufferData[i] = bufferData;
         }
 
         m_resultBufferDatas = new uint[m_colliders.Length];
 
         if (m_supportsComputeShaders)
         {
-            m_threadGroups = Mathf.CeilToInt(m_colliders.Length / THREAD_COUNT);
-
             ReleaseBuffer();
 
-            m_computeBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2);
-            m_computeBuffer.SetData(m_bufferDatas);
-            computeShader.SetBuffer(m_kernelID, "buffer", m_computeBuffer);
+            m_boundsBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2);
+            m_boundsBuffer.SetData(m_bufferData);
+            computeShader.SetBuffer(m_kernelID, BOUNDS_BUFFER_NAME, m_boundsBuffer);
 
-            m_resultComputeBuffer = new ComputeBuffer(m_colliders.Length, sizeof(uint));
-            computeShader.SetBuffer(m_kernelID, "resultBuffer", m_resultComputeBuffer);
+            m_resultBuffer = new ComputeBuffer(m_colliders.Length, sizeof(uint));
+            computeShader.SetBuffer(m_kernelID, RESULT_BUFFER_NAME, m_resultBuffer);
+
+            m_threadGroups = Mathf.CeilToInt(m_colliders.Length / THREAD_COUNT);
         }
     }
 
-    private void InitializeBufferData(Collider tempCollider, ref BufferData bufferData)
-    {
-        bufferData.center = tempCollider.bounds.center;
-        bufferData.extents = tempCollider.bounds.extents;
-    }
-
+    private Plane[] m_frustumPlanes;
     private void Update()
     {
         if (!m_valid)
         {
             return;
         }
+
+        m_frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
 
         if (m_supportsComputeShaders)
         {
@@ -98,23 +101,26 @@ public class GPUFrustumCulling : MonoBehaviour
         }
     }
 
+    private Vector4[] m_frustumVector4;
     private void UpdateComputeShader()
     {
-        Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
-        Vector4[] frustumPlanes4 = new Vector4[frustumPlanes.Length];
-        for (int i = 0; i < frustumPlanes4.Length; i++)
+        if(m_frustumVector4 == null || m_frustumVector4.Length != m_frustumPlanes.Length)
         {
-            frustumPlanes4[i] = frustumPlanes[i].normal;
-            frustumPlanes4[i].w = frustumPlanes[i].distance;
+            m_frustumVector4 = new Vector4[m_frustumPlanes.Length];
         }
-        computeShader.SetVectorArray("frustumPlanes", frustumPlanes4);
 
+        for (int i = 0; i < m_frustumVector4.Length; i++)
+        {
+            m_frustumVector4[i] = m_frustumPlanes[i].ToVector4();
+        }
+
+        computeShader.SetVectorArray(FRUSTUM_PLANES_NAME, m_frustumVector4);
         computeShader.Dispatch(m_kernelID, m_threadGroups, 1, 1);
-        m_resultComputeBuffer.GetData(m_resultBufferDatas, 0, 0, m_resultBufferDatas.Length);
+        m_resultBuffer.GetData(m_resultBufferDatas, 0, 0, m_resultBufferDatas.Length);
 
         if (asyncGPUReadback)
         {
-            AsyncGPUReadback.Request(m_computeBuffer, OnAsyncGPUReadbackRequest);
+            AsyncGPUReadback.Request(m_boundsBuffer, OnAsyncGPUReadbackRequest);
         }
         else
         {
@@ -145,18 +151,9 @@ public class GPUFrustumCulling : MonoBehaviour
 
     private void UpdateGeneral()
     {
-        Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
-        Vector4[] frustumPlanes4 = new Vector4[frustumPlanes.Length];
-        for(int i = 0; i < frustumPlanes4.Length; i++)
-        {
-            frustumPlanes4[i] = frustumPlanes[i].normal;
-            frustumPlanes4[i].w = frustumPlanes[i].distance;
-        }
-
         for (int i = 0; i < m_renderers.Length; i++)
         {
-            m_renderers[i].enabled = GeometryUtility.TestPlanesAABB(frustumPlanes, m_colliders[i].bounds);
-            //m_renderers[i].enabled = FrustumCullingUtility.TestPlanesAABBInternalFast(frustumPlanes4, m_colliders[i].bounds);
+            m_renderers[i].enabled = GeometryUtility.TestPlanesAABB(m_frustumPlanes, m_colliders[i].bounds);
         }
     }
 
@@ -167,16 +164,16 @@ public class GPUFrustumCulling : MonoBehaviour
 
     private void ReleaseBuffer()
     {
-        if (m_computeBuffer != null)
+        if (m_boundsBuffer != null)
         {
-            m_computeBuffer.Release();
-            m_computeBuffer = null;
+            m_boundsBuffer.Release();
+            m_boundsBuffer = null;
         }
 
-        if(m_resultComputeBuffer != null)
+        if(m_resultBuffer != null)
         {
-            m_resultComputeBuffer.Release();
-            m_resultComputeBuffer = null;
+            m_resultBuffer.Release();
+            m_resultBuffer = null;
         }
     }
 }
