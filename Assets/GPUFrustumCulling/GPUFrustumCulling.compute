@@ -11,40 +11,92 @@ struct BufferData
 };
 
 float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
-float3 _FrustumMinPoint;
-float3 _FrustumMaxPoint;
+//float3 _FrustumMinPoint;
+//float3 _FrustumMaxPoint;
 RWStructuredBuffer<BufferData> buffer;
+RWStructuredBuffer<uint> resultBuffer;
 
-void UpdateBufferData(BufferData bufferData)
+//void UpdateBufferData(BufferData bufferData)
+//{
+//    float3 center = bufferData.center;
+//    float3 extents = bufferData.extents;
+//    float3 minPos = center - extents;
+//    float3 maxPos = center + extents;
+//    float outOfRange = dot(_FrustumMinPoint > maxPos, 1) + dot(_FrustumMaxPoint < minPos, 1);
+//    if(outOfRange > 0.5)
+//	{
+//		bufferData.visible = 0;
+//		return;
+//	}
+
+//    [unroll]
+//    for(uint i = 0; i < FRUSTUM_PLANE_COUNT; ++i)
+//    {
+//        float4 frustumPlane = frustumPlanes[i];
+//        float3 absNormal = abs(frustumPlane.xyz);
+//        if((dot(center, frustumPlane.xyz) - dot(absNormal, extents)) > -frustumPlane.w)
+//        {
+//            bufferData.visible = 0;
+//			return;
+//        }
+//    }
+
+//	bufferData.visible = 1;
+//}
+
+void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
 {
-    float3 center = bufferData.center;
-    float3 extents = bufferData.extents;
-    float3 minPos = center - extents;
-    float3 maxPos = center + extents;
-    float outOfRange = dot(_FrustumMinPoint > maxPos, 1) + dot(_FrustumMaxPoint < minPos, 1);
-    if(outOfRange > 0.5)
-	{
-		bufferData.visible = 0;
-		return;
-	}
-
-    [unroll]
-    for(uint i = 0; i < FRUSTUM_PLANE_COUNT; ++i)
+    float3 minPos = bufferData.center - bufferData.extents;
+    float3 maxPos = bufferData.center + bufferData.extents;
+    
+    for(int i = 0; i < FRUSTUM_PLANE_COUNT; i++)
     {
-        float4 frustumPlane = frustumPlanes[i];
-        float3 absNormal = abs(frustumPlane.xyz);
-        if((dot(center, frustumPlane.xyz) - dot(absNormal, extents)) > -frustumPlane.w)
+        float3 normal = frustumPlanes[i].xyz;
+        float planeDistance = frustumPlanes[i].w;
+        
+        float3 vmin = float3(0, 0, 0);
+        
+        if(normal.x < 0)
         {
-            bufferData.visible = 0;
-			return;
+           vmin.x = minPos.x;
+        }
+        else
+        {
+            vmin.x = maxPos.x;
+        }
+        
+        if(normal.y < 0)
+        {
+           vmin.y = minPos.y;
+        }
+        else
+        {
+            vmin.y = maxPos.y;
+        }
+        
+        if(normal.z < 0)
+        {
+           vmin.z = minPos.z;
+        }
+        else
+        {
+            vmin.z = maxPos.z;
+        }
+        
+        float dot1 = dot(normal, vmin);
+        if(dot1 + planeDistance < 0)
+        {
+            resultBuffer[id] = 0;
+            return;
         }
     }
-
-	bufferData.visible = 1;
+    
+    resultBuffer[id] = 1;
 }
 
 [numthreads(THREAD_COUNT,1,1)]
 void CSMain (uint id : SV_DispatchThreadID)
 {
-	UpdateBufferData(buffer[id]);
+	//UpdateBufferData(buffer[id]);
+    TestPlanesAABBInternalFast(id, buffer[id]);
 }

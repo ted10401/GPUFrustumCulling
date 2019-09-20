@@ -10,11 +10,6 @@ public class GPUFrustumCullingGenerator : MonoBehaviour
     private Collider[] m_cubeColliders;
     private Renderer[] m_cubeRenderers;
 
-    private void Awake()
-    {
-        Generate();
-    }
-
     private void Update()
     {
         if(Input.GetKeyDown(KeyCode.Space))
