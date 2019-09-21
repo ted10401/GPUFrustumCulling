@@ -3,31 +3,27 @@ namespace UnityEngine
 {
     public static class FrustumCullingUtility
     {
-        private static Vector3 m_center;
-        private static Vector3 m_extents;
         private static Vector3 m_boundsMin;
         private static Vector3 m_boundsMax;
         private static Vector3 m_bounds;
         private static Vector3 m_normal;
         private static float m_planeDistance;
         private static float m_dot;
-        public static bool TestPlanesAABBInternalFast(Vector4[] planes, Bounds bounds)
+        public static bool TestPlanesAABBInternalFast(Vector4[] planes, Vector3 center, Vector3 extents)
         {
-            m_center = bounds.center;
-            m_extents = bounds.extents;
-            m_boundsMin.x = m_center.x - m_extents.x;
-            m_boundsMin.y = m_center.y - m_extents.y;
-            m_boundsMin.z = m_center.z - m_extents.z;
-            m_boundsMax.x = m_center.x + m_extents.x;
-            m_boundsMax.y = m_center.y + m_extents.y;
-            m_boundsMax.z = m_center.z + m_extents.z;
+            m_boundsMin.x = center.x - extents.x;
+            m_boundsMin.y = center.y - extents.y;
+            m_boundsMin.z = center.z - extents.z;
+            m_boundsMax.x = center.x + extents.x;
+            m_boundsMax.y = center.y + extents.y;
+            m_boundsMax.z = center.z + extents.z;
 
-            for (int planeIndex = 0; planeIndex < planes.Length; planeIndex++)
+            for (int i = 0; i < planes.Length; i++)
             {
-                m_normal.x = planes[planeIndex].x;
-                m_normal.y = planes[planeIndex].y;
-                m_normal.z = planes[planeIndex].z;
-                m_planeDistance = planes[planeIndex].w;
+                m_normal.x = planes[i].x;
+                m_normal.y = planes[i].y;
+                m_normal.z = planes[i].z;
+                m_planeDistance = planes[i].w;
 
                 m_bounds.x = m_normal.x >= 0 ? m_boundsMax.x : m_boundsMin.x;
                 m_bounds.y = m_normal.y >= 0 ? m_boundsMax.y : m_boundsMin.y;

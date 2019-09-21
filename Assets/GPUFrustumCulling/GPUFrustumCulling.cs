@@ -96,6 +96,15 @@ public class GPUFrustumCulling : MonoBehaviour
         }
 
         m_frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
+        if (m_frustumVector4 == null || m_frustumVector4.Length != m_frustumPlanes.Length)
+        {
+            m_frustumVector4 = new Vector4[m_frustumPlanes.Length];
+        }
+
+        for (int i = 0; i < m_frustumVector4.Length; i++)
+        {
+            m_frustumVector4[i] = m_frustumPlanes[i].ToVector4();
+        }
 
         if (m_supportsComputeShaders)
         {
@@ -111,16 +120,6 @@ public class GPUFrustumCulling : MonoBehaviour
     private Bounds m_colliderBounds;
     private void UpdateComputeShader()
     {
-        if(m_frustumVector4 == null || m_frustumVector4.Length != m_frustumPlanes.Length)
-        {
-            m_frustumVector4 = new Vector4[m_frustumPlanes.Length];
-        }
-
-        for (int i = 0; i < m_frustumVector4.Length; i++)
-        {
-            m_frustumVector4[i] = m_frustumPlanes[i].ToVector4();
-        }
-
         //for (int i = 0; i < m_colliders.Length; i++)
         //{
         //    m_colliderBounds = m_colliders[i].bounds;
@@ -176,6 +175,7 @@ public class GPUFrustumCulling : MonoBehaviour
         for (int i = 0; i < m_renderers.Length; i++)
         {
             m_enabled = GeometryUtility.TestPlanesAABB(m_frustumPlanes, m_colliders[i].bounds);
+            //m_enabled = FrustumCullingUtility.TestPlanesAABBInternalFast(m_frustumVector4, m_bufferData[i].center, m_bufferData[i].extents);
             if (m_resultCached[i] != m_enabled)
             {
                 m_resultCached[i] = m_enabled;
@@ -191,8 +191,6 @@ public class GPUFrustumCulling : MonoBehaviour
 
     private void ReleaseBuffer()
     {
-        Debug.LogError("Release Buffer");
-
         if (m_boundsBuffer != null)
         {
             m_boundsBuffer.Release();
