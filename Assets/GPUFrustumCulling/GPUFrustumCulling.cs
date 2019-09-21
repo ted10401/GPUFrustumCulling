@@ -29,6 +29,7 @@ public class GPUFrustumCulling : MonoBehaviour
     private BufferData[] m_bufferData;
     private ComputeBuffer m_resultBuffer;
     private uint[] m_resultBufferDatas;
+    private bool[] m_resultCached;
 
     private void Awake()
     {
@@ -65,6 +66,11 @@ public class GPUFrustumCulling : MonoBehaviour
         }
 
         m_resultBufferDatas = new uint[m_colliders.Length];
+        m_resultCached = new bool[m_colliders.Length];
+        for(int i = 0; i < m_resultCached.Length; i++)
+        {
+            m_resultCached[i] = true;
+        }
 
         if (m_supportsComputeShaders)
         {
@@ -102,6 +108,7 @@ public class GPUFrustumCulling : MonoBehaviour
     }
 
     private Vector4[] m_frustumVector4;
+    private Bounds m_colliderBounds;
     private void UpdateComputeShader()
     {
         if(m_frustumVector4 == null || m_frustumVector4.Length != m_frustumPlanes.Length)
@@ -114,12 +121,13 @@ public class GPUFrustumCulling : MonoBehaviour
             m_frustumVector4[i] = m_frustumPlanes[i].ToVector4();
         }
 
-        for (int i = 0; i < m_colliders.Length; i++)
-        {
-            m_bufferData[i].center = m_colliders[i].bounds.center;
-            m_bufferData[i].extents = m_colliders[i].bounds.extents;
-        }
-        m_boundsBuffer.SetData(m_bufferData);
+        //for (int i = 0; i < m_colliders.Length; i++)
+        //{
+        //    m_colliderBounds = m_colliders[i].bounds;
+        //    m_bufferData[i].center = m_colliderBounds.center;
+        //    m_bufferData[i].extents = m_colliderBounds.extents;
+        //}
+        //m_boundsBuffer.SetData(m_bufferData);
 
         computeShader.SetVectorArray(FRUSTUM_PLANES_NAME, m_frustumVector4);
         computeShader.Dispatch(m_kernelID, m_threadGroups, 1, 1);
@@ -143,16 +151,23 @@ public class GPUFrustumCulling : MonoBehaviour
         }
     }
 
+    private bool m_enabled;
     private void UpdateComputeBuffer()
     {
         if (!Application.isPlaying)
         {
+            ReleaseBuffer();
             return;
         }
 
         for (int i = 0; i < m_renderers.Length; i++)
         {
-            m_renderers[i].enabled = m_resultBufferDatas[i] == 1;
+            m_enabled = m_resultBufferDatas[i] == 1;
+            if(m_resultCached[i] != m_enabled)
+            {
+                m_resultCached[i] = m_enabled;
+                m_renderers[i].enabled = m_enabled;
+            }
         }
     }
 
@@ -160,7 +175,12 @@ public class GPUFrustumCulling : MonoBehaviour
     {
         for (int i = 0; i < m_renderers.Length; i++)
         {
-            m_renderers[i].enabled = GeometryUtility.TestPlanesAABB(m_frustumPlanes, m_colliders[i].bounds);
+            m_enabled = GeometryUtility.TestPlanesAABB(m_frustumPlanes, m_colliders[i].bounds);
+            if (m_resultCached[i] != m_enabled)
+            {
+                m_resultCached[i] = m_enabled;
+                m_renderers[i].enabled = m_enabled;
+            }
         }
     }
 
@@ -171,6 +191,8 @@ public class GPUFrustumCulling : MonoBehaviour
 
     private void ReleaseBuffer()
     {
+        Debug.LogError("Release Buffer");
+
         if (m_boundsBuffer != null)
         {
             m_boundsBuffer.Release();
