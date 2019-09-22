@@ -23,10 +23,7 @@ void TestPlanesAABBInternalFast(uint id, BufferData bufferData)
     {
         float3 normal = frustumPlanes[i].xyz;
         float planeDistance = frustumPlanes[i].w;
-        float3 bounds;
-        bounds.x = normal.x >= 0 ? boundsMax.x : boundsMin.x;
-        bounds.y = normal.y >= 0 ? boundsMax.y : boundsMin.y;
-        bounds.z = normal.z >= 0 ? boundsMax.z : boundsMin.z;
+        float3 bounds = lerp(boundsMin, boundsMax, step(0, normal));
         
         if(dot(normal, bounds) + planeDistance < 0)
         {
