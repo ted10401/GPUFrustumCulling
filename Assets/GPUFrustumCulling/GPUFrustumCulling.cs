@@ -12,7 +12,7 @@ public class GPUFrustumCulling : MonoBehaviour
     struct BufferData
     {
         public Vector3 center;
-        public Vector3 extents;
+        public Vector3 extents;             
     };
 
     public bool forceNotSupportsComputeShaders = false;
@@ -76,7 +76,7 @@ public class GPUFrustumCulling : MonoBehaviour
         {
             ReleaseBuffer();
 
-            m_boundsBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 3 * 2);
+            m_boundsBuffer = new ComputeBuffer(m_colliders.Length, sizeof(float) * 6);
             m_boundsBuffer.SetData(m_bufferData);
             computeShader.SetBuffer(m_kernelID, BOUNDS_BUFFER_NAME, m_boundsBuffer);
 
@@ -120,13 +120,13 @@ public class GPUFrustumCulling : MonoBehaviour
     private Bounds m_colliderBounds;
     private void UpdateComputeShader()
     {
-        //for (int i = 0; i < m_colliders.Length; i++)
-        //{
-        //    m_colliderBounds = m_colliders[i].bounds;
-        //    m_bufferData[i].center = m_colliderBounds.center;
-        //    m_bufferData[i].extents = m_colliderBounds.extents;
-        //}
-        //m_boundsBuffer.SetData(m_bufferData);
+        for (int i = 0; i < m_colliders.Length; i++)
+        {
+            m_colliderBounds = m_colliders[i].bounds;
+            m_bufferData[i].center = m_colliderBounds.center;
+            m_bufferData[i].extents = m_colliderBounds.extents;
+        }
+        m_boundsBuffer.SetData(m_bufferData);
 
         computeShader.SetVectorArray(FRUSTUM_PLANES_NAME, m_frustumVector4);
         computeShader.Dispatch(m_kernelID, m_threadGroups, 1, 1);
