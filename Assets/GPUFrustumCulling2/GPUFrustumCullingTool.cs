@@ -52,13 +52,23 @@ public class GPUFrustumCullingTool : MonoBehaviour
         gPUBounds = gPUBoundsList.ToArray();
     }
 
-    private void Start()
+    private void OnEnable()
     {
+        if(gPUBounds == null || gPUBounds.Length == 0)
+        {
+            return;
+        }
+
         GPUFrustumCullingManager.Instance.Register(gPUBounds);
     }
 
     private void OnDisable()
     {
+        if (gPUBounds == null || gPUBounds.Length == 0)
+        {
+            return;
+        }
+
         GPUFrustumCullingManager.Instance.Unregister(gPUBounds);
     }
 }
