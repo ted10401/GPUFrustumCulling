@@ -4,12 +4,18 @@ using System;
 [Serializable]
 public class GPUBounds
 {
+    public bool valid;
     public bool isStatic;
     public Renderer renderer;
     public Collider collider;
     public Vector3 center;
     public Vector3 extents;
     public uint visible;
+
+    public void SetStatic(bool value)
+    {
+        isStatic = value;
+    }
 
     public void SetVisible(uint value)
     {

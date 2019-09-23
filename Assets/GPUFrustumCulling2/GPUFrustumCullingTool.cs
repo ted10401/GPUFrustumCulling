@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 public class GPUFrustumCullingTool : MonoBehaviour
 {
@@ -7,19 +8,22 @@ public class GPUFrustumCullingTool : MonoBehaviour
     [ContextMenu("Execute")]
     private void Execute()
     {
-        Renderer[] renderers = GetComponentsInChildren<Renderer>();
-        Vector3[] centers = new Vector3[renderers.Length];
-        Vector3[] extents = new Vector3[renderers.Length];
-        uint[] visibles = new uint[renderers.Length];
-        gPUBounds = new GPUBounds[renderers.Length];
-
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        List<GPUBounds> gPUBoundsList = new List<GPUBounds>();
+        GPUBounds cacheGPUBrounds;
         Collider cacheCollider;
         bool tempCollider = false;
+
         for (int i = 0; i < renderers.Length; i++)
         {
-            gPUBounds[i] = new GPUBounds();
-            gPUBounds[i].isStatic = true;
-            gPUBounds[i].renderer = renderers[i];
+            if(!renderers[i].enabled)
+            {
+                continue;
+            }
+
+            cacheGPUBrounds = new GPUBounds();
+            cacheGPUBrounds.isStatic = true;
+            cacheGPUBrounds.renderer = renderers[i];
 
             cacheCollider = renderers[i].GetComponent<Collider>();
             tempCollider = cacheCollider == null;
@@ -29,18 +33,23 @@ public class GPUFrustumCullingTool : MonoBehaviour
             }
             else
             {
-                gPUBounds[i].collider = cacheCollider;
+                cacheGPUBrounds.collider = cacheCollider;
             }
 
-            gPUBounds[i].center = cacheCollider.bounds.center;
-            gPUBounds[i].extents = cacheCollider.bounds.extents;
-            gPUBounds[i].visible = (uint)(renderers[i].enabled ? 1 : 0);
+            cacheGPUBrounds.center = cacheCollider.bounds.center;
+            cacheGPUBrounds.extents = cacheCollider.bounds.extents;
+            cacheGPUBrounds.visible = 1;
+            cacheGPUBrounds.valid = true;
 
-            if(tempCollider)
+            if (tempCollider)
             {
                 DestroyImmediate(cacheCollider);
             }
+
+            gPUBoundsList.Add(cacheGPUBrounds);
         }
+
+        gPUBounds = gPUBoundsList.ToArray();
     }
 
     private void Start()
