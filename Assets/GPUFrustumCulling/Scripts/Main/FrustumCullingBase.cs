@@ -10,7 +10,7 @@ namespace FS2.GPUFrustumCulling
         public Vector3 center;
         public Vector3 extents;
         public uint visible;
-
+        
         public abstract void SetVisible(uint value);
         public abstract void SetVisible(bool value);
     }

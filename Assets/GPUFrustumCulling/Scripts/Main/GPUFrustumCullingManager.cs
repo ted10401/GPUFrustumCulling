@@ -29,6 +29,7 @@ namespace FS2.GPUFrustumCulling
         private bool m_supportsComputeShaders;
         private ComputeShader m_computeShader;
         private int m_kernelID;
+        private UnityEngine.Camera m_camera;
         private List<FrustumCullingBase> m_frustumCullingBases = new List<FrustumCullingBase>();
         private List<int> m_dynamicIndexes = new List<int>();
         private int m_lastDynamicIndex;
@@ -59,6 +60,7 @@ namespace FS2.GPUFrustumCulling
             m_initialized = true;
             m_computeShader = computeShader;
             m_kernelID = m_computeShader.FindKernel(KERNEL_NAME);
+            m_camera = UnityEngine.Camera.main;
         }
 
         private void OnDisable()
@@ -68,6 +70,7 @@ namespace FS2.GPUFrustumCulling
 
         public void Register(FrustumCullingBase frustumCullingBase)
         {
+            frustumCullingBase.center = frustumCullingBase.transform.position;
             m_frustumCullingBases.Add(frustumCullingBase);
             UpdateDynamicIndexes();
         }
@@ -145,7 +148,7 @@ namespace FS2.GPUFrustumCulling
                 UpdateComputeBuffer(m_tempResultBufferDatas);
             }
 
-            m_frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Camera.main);
+            m_frustumPlanes = GeometryUtility.CalculateFrustumPlanes(m_camera);
             if (m_frustumVector4 == null || m_frustumVector4.Length != m_frustumPlanes.Length)
             {
                 m_frustumVector4 = new Vector4[m_frustumPlanes.Length];

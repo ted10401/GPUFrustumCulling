@@ -3,14 +3,13 @@ using UnityEngine;
 
 namespace FS2.GPUFrustumCulling
 {
-    public class FrustumCullingScene : MonoBehaviour
+    public class FrustumCullingRendererGroup : MonoBehaviour
     {
         [SerializeField] private FrustumCullingRenderer[] m_frustumCullingRenderers;
-
-        [ContextMenu("Execute")]
-        private void Execute()
+        
+        private void Reset()
         {
-            Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+            Renderer[] renderers = GetComponentsInChildren<Renderer>();
             List<FrustumCullingRenderer> frustumCullingRendererList = new List<FrustumCullingRenderer>();
             FrustumCullingRenderer cacheFrustumCullingRenderer;
 
