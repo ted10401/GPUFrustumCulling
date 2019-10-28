@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using JSLCore;
 using JSLCore.Resource;
+using TEDCore.HiZ;
 
 namespace FS2.FrustumCulling
 {
@@ -35,6 +36,7 @@ namespace FS2.FrustumCulling
         private ComputeShader m_computeShader;
         private int m_kernelID;
         private UnityEngine.Camera m_camera;
+        private HiZBuffer m_hiZBuffer;
         private Dictionary<int, FrustumCullingBase> m_cpuFrustumCullings = new Dictionary<int, FrustumCullingBase>();
         private Dictionary<int, FrustumCullingBase[]> m_gpuFrustumCullings = new Dictionary<int, FrustumCullingBase[]>();
         private int m_gpuFrustumCullingCount;
@@ -60,6 +62,7 @@ namespace FS2.FrustumCulling
 
             m_initialized = true;
             m_camera = UnityEngine.Camera.main;
+            m_hiZBuffer = m_camera.GetComponent<HiZBuffer>();
             m_supportsComputeShaders = SystemInfo.supportsComputeShaders;
             if (m_supportsComputeShaders)
             {
@@ -355,6 +358,9 @@ namespace FS2.FrustumCulling
             {
                 if(m_asyncGPUReadbackRequests.Count < MAXIMUM_REQUEST_COUNT)
                 {
+                    m_computeShader.SetTexture(m_kernelID, FrustumCullingShaderIDs._HiZMap, m_hiZBuffer.hiZDepthTexture);
+                    m_computeShader.SetVector(FrustumCullingShaderIDs._HiZTextureSize, m_hiZBuffer.textureSize);
+                    m_computeShader.SetMatrix(FrustumCullingShaderIDs._UNITY_MATRIX_MVP, m_camera.projectionMatrix * m_camera.worldToCameraMatrix);
                     m_computeShader.SetVectorArray(FrustumCullingShaderIDs.frustumPlanes, m_frustumVector4);
                     m_computeShader.Dispatch(m_kernelID, m_threadGroups, THREAD_GROUP_Y, THREAD_GROUP_Z);
                     m_asyncGPUReadbackRequests.Enqueue(AsyncGPUReadback.Request(m_resultBuffer));
@@ -362,6 +368,9 @@ namespace FS2.FrustumCulling
             }
             else
             {
+                m_computeShader.SetTexture(m_kernelID, FrustumCullingShaderIDs._HiZMap, m_hiZBuffer.hiZDepthTexture);
+                m_computeShader.SetVector(FrustumCullingShaderIDs._HiZTextureSize, m_hiZBuffer.textureSize);
+                m_computeShader.SetMatrix(FrustumCullingShaderIDs._UNITY_MATRIX_MVP, m_camera.projectionMatrix * m_camera.worldToCameraMatrix);
                 m_computeShader.SetVectorArray(FrustumCullingShaderIDs.frustumPlanes, m_frustumVector4);
                 m_computeShader.Dispatch(m_kernelID, m_threadGroups, THREAD_GROUP_Y, THREAD_GROUP_Z);
 
