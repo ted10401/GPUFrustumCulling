@@ -1,0 +1,158 @@
+﻿#pragma kernel CSMain
+#define FRUSTUM_PLANE_COUNT 6
+#define THREAD_GROUP_X 256
+#define THREAD_GROUP_Y 1
+#define THREAD_GROUP_Z 1
+#include "UnityCG.cginc"
+
+struct BufferData
+{
+    float3 center;
+    float3 extents;
+};
+
+StructuredBuffer<BufferData> boundsBuffer;
+RWStructuredBuffer<uint> resultBuffer;
+float4 frustumPlanes[FRUSTUM_PLANE_COUNT];
+uint _Count;
+float2 _HiZTextureSize;    
+float4x4 _UNITY_MATRIX_MVP;
+Texture2D<float4> _HiZMap;
+SamplerState sampler_HiZMap;
+
+float FrustumCullingTest(BufferData bufferData)
+{
+	float3 center = bufferData.center;
+    float3 extents = bufferData.extents;
+    float3 boundsMin = center - extents;
+    float3 boundsMax = center + extents;
+
+	[unroll]
+    for(uint i = 0; i < FRUSTUM_PLANE_COUNT; i++)
+    {
+        float3 normal = frustumPlanes[i].xyz;
+        float planeDistance = frustumPlanes[i].w;
+        float3 bounds = lerp(boundsMin, boundsMax, step(0, normal));
+        
+        if(dot(normal, bounds) + planeDistance < 0.5)
+        {
+            return 0;
+        }
+    }
+    
+    return 1;
+}
+
+// Hi-Z Culling
+inline uint OcclusionCullingTest(float clipMinX, float clipMaxX, float clipMinY, float clipMaxY, float clipMinZ)
+{
+    // Change it to 0 - 1 range 
+    float2 minXY = float2(clipMinX, clipMinY) * 0.5 + 0.5;
+    float2 maxXY = float2(clipMaxX, clipMaxY) * 0.5 + 0.5;
+    
+    // Calculate hi-Z buffer mip
+    int2 size = (maxXY - minXY) * _HiZTextureSize.xy;
+    float mip = ceil(log2(max(size.x, size.y)));
+    mip = clamp(mip, 0, 10);
+    
+    // Texel footprint for the lower (finer-grained) level
+    float  level_lower = max(mip - 1, 0);
+    float2 scale = exp2(-level_lower);
+    float2 a = floor(minXY * scale);
+    float2 b = ceil(maxXY * scale);
+    float2 dims = b - a;
+    
+    // Use the lower level if we only touch <= 2 texels in both dimensions
+    if (dims.x <= 2 && dims.y <= 2)
+    {
+        mip = level_lower;
+    }
+    
+    // find the max depth
+    // Hi-Z approach that allows for more samples.
+    // https://www.gamedev.net/blogs/entry/2249535-hierarchical-z-buffer-occlusion-culling-updated-07152011/
+    const int xSamples = 8;
+    const int ySamples = 25;
+    const float widthSS = (maxXY.x - minXY.x);
+    const float heightSS = (maxXY.y - minXY.y);    
+    const float maxSizeSS = max(widthSS * _HiZTextureSize.x, heightSS * _HiZTextureSize.y);    
+    const float stepX = widthSS / xSamples;    
+    const float stepY = heightSS / ySamples;    
+    
+    float HIZdepth = 1;    
+    float yPos = minXY.y;
+    for(int y = 0; y <= ySamples; ++y)
+    {
+        float xPos = minXY.x;
+        for(int x = 0; x <= xSamples; ++x)
+        {
+            const float2 nCoords0 = float2(xPos, yPos);
+            HIZdepth = min(HIZdepth, _HiZMap.SampleLevel(sampler_HiZMap, nCoords0, mip).r);
+            xPos += stepX;
+        }
+        yPos += stepY;    
+    }
+    
+    return (1.0 - clipMinZ) >= HIZdepth - 0.000015; // last is an epsilon
+}
+
+static const float3 boxCornerArray[8] =
+{
+    float3(0, 0, 0),
+    float3(0, 0, 1),
+    float3(0, 1, 0),
+    float3(0, 1, 1),
+	float3(1, 0, 0),
+    float3(1, 0, 1),
+    float3(1, 1, 0),
+    float3(1, 1, 1),
+};
+uint OcclusionCullingTest(BufferData bufferData)
+{
+    // Check if the instance is visible
+    float3 minPos = bufferData.center - bufferData.extents;
+    float3 maxPos = bufferData.center + bufferData.extents;
+
+	float4 boxCorner = float4(lerp(minPos, maxPos, boxCornerArray[0]), 1.0);
+	float4 clipPos = mul(_UNITY_MATRIX_MVP, boxCorner);
+    clipPos.xyz = clipPos.xyz / clipPos.w;
+
+    float clipMinX = clipPos.x;
+    float clipMaxX = clipPos.x;
+    float clipMinY = clipPos.y;
+    float clipMaxY = clipPos.y;
+    float clipMinZ = clipPos.z;
+
+	[unroll]
+	for(uint i = 1; i < 8; i++)
+	{
+		boxCorner = float4(lerp(minPos, maxPos, boxCornerArray[i]), 1.0);
+		clipPos = mul(_UNITY_MATRIX_MVP, boxCorner);
+		clipPos.xyz = clipPos.xyz / clipPos.w;
+
+		clipMinX = min(clipPos.x, clipMinX);
+        clipMaxX = max(clipPos.x, clipMaxX);
+        clipMinY = min(clipPos.y, clipMinY);
+        clipMaxY = max(clipPos.y, clipMaxY);
+        clipMinZ = min(clipPos.z, clipMinZ);
+	}
+
+    return OcclusionCullingTest(clipMinX, clipMaxX, clipMinY, clipMaxY, clipMinZ);
+}
+
+[numthreads(THREAD_GROUP_X, THREAD_GROUP_Y, THREAD_GROUP_Z)]
+void CSMain (uint id : SV_DispatchThreadID)
+{
+	if(id >= _Count)
+	{
+		return;
+	}
+
+    resultBuffer[id] = FrustumCullingTest(boundsBuffer[id]);
+	//resultBuffer[id] = 1;
+
+	if(resultBuffer[id] > 0.5)
+	{
+		resultBuffer[id] = OcclusionCullingTest(boundsBuffer[id]);
+	}
+}
