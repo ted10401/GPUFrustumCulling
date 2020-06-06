@@ -38,7 +38,7 @@ namespace FS2.FrustumCulling
                     continue;
                 }
 
-                cacheFrustumCullingRenderer = new FrustumCullingRenderer(renderers[i].gameObject, false);
+                cacheFrustumCullingRenderer = new FrustumCullingRenderer(renderers[i].gameObject);
                 m_frustumCullingRenderers.Add(cacheFrustumCullingRenderer);
             }
 
@@ -67,7 +67,7 @@ namespace FS2.FrustumCulling
                     continue;
                 }
 
-                cacheFrustumCullingLight = new FrustumCullingLight(lights[i].gameObject, false);
+                cacheFrustumCullingLight = new FrustumCullingLight(lights[i].gameObject);
                 m_frustumCullingLights.Add(cacheFrustumCullingLight);
             }
 

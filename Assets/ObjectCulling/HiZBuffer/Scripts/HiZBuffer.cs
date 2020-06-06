@@ -16,9 +16,9 @@ public class HiZBuffer : MonoBehaviour
     private readonly int HIZ_STRENGTH_ID = Shader.PropertyToID("_Strength");
 
     [Header("Debug")]
-    [SerializeField] private bool m_debugHiZBuffer;
-    [SerializeField] [Range(0, 10)] private int m_debugHiZLOD;
-    [SerializeField] [Range(1, 100)] private float m_debugHiZStrength;
+    [SerializeField] private bool m_debugHiZBuffer = false;
+    [SerializeField] [Range(0, 10)] private int m_debugHiZLOD = 0;
+    [SerializeField] [Range(1, 100)] private float m_debugHiZStrength = 1;
 
     [Header("References")]
     [SerializeField] private Camera m_mainCamera = null;
@@ -42,6 +42,24 @@ public class HiZBuffer : MonoBehaviour
         m_hiZBufferMaterial = new Material(m_hiZBufferShader);
         m_debugHiZBufferMaterial = new Material(m_debugHiZBufferShader);
         m_mainCamera.depthTextureMode = DepthTextureMode.Depth;
+    }
+
+    private void Update()
+    {
+        if(Input.GetKeyDown(KeyCode.S))
+        {
+            m_debugHiZBuffer = !m_debugHiZBuffer;
+        }
+
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            m_debugHiZLOD = Mathf.Clamp(m_debugHiZLOD - 1, 0, 10);
+        }
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            m_debugHiZLOD = Mathf.Clamp(m_debugHiZLOD + 1, 0, 10);
+        }
     }
 
     private void OnDisable()
